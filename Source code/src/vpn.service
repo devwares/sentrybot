@@ -1,0 +1,11 @@
+[Unit]
+Description=%%vpnservicename%% Service
+After=xl2tpd.service ipsec.service
+
+[Service]
+ExecStart=%%vpnupfile%%
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

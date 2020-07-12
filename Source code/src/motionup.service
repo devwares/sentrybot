@@ -1,0 +1,11 @@
+[Unit]
+Description=%%motionupservicename%% Service
+After=vpn-up.service
+
+[Service]
+ExecStart=%%motionupscriptfile%%
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
