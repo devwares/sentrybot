@@ -1,12 +1,13 @@
 #!/bin/bash
 
+motionwaitforinterface="%%motionwaitforinterface%%"
 motionup="0"
 
 # Loop to test ppp connection
 while [ "$motionup" -eq "0" ]
 do
 
-  export testppp=`/sbin/ip link show | grep ppp | grep -c UP`
+  export testppp=`/sbin/ip link show | grep $motionwaitforinterface | grep -c UP`
   if [ "0" -ne "$testppp" ]; 
   then
 

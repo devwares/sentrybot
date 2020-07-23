@@ -52,69 +52,116 @@ export DEBIAN_FRONTEND=noninteractive
 apt -y update && apt -y upgrade
 
 # Install packages
-apt-get -yq install motion ipsec-tools xl2tpd strongswan net-tools autofs sshfs mutt msmtp sox libsox-fmt-mp3 wiringpi curl libcurl4 libusb-0.1 unzip wget sudo cron libudev-dev apt-utils whiptail git
+packageslist="motion net-tools autofs sshfs mutt msmtp sox libsox-fmt-mp3 wiringpi curl libcurl4 libusb-0.1 unzip wget sudo cron libudev-dev apt-utils whiptail git"
+if [ "${l2tpactive,,}" = "true" ]
+then
+        packageslist="$packageslist ipsec-tools xl2tpd strongswan"
+fi
+apt-get -yq install $packageslist
 
-# Ipsec Configuration
-#ipseccfgfile="$TESTDIR/ipsec.conf.inc"
-cp -f $SCRIPTPATH/src/ipsec.conf.inc $tempfile
+# Set IP settings
+cp -f $SCRIPTPATH/src/dhcpcd.conf $tempfile
 declare -A confs
 confs=(
-    [%%conname%%]=$conname
-    [%%vpnserverip%%]=$vpnserverip
+    [%%hostinterface%%]=$hostinterface
+    [%%hostipaddress%%]=$hostipaddress
+    [%%hostrouters%%]=$hostrouters
+    [%%hostdns%%]=$hostdns
 )
 strreplace
-cp -f $tempfile $ipseccfgfile
+cp -f $tempfile $dhcpcdconffile
 
-# L2tpd Client Options
-#pppoptfile="$TESTDIR/options.l2tpd.client"
-cp -f $SCRIPTPATH/src/options.l2tpd.client $tempfile
+# Set Wifi settings
+cp -f $SCRIPTPATH/src/wpa_supplicant.conf $tempfile
 declare -A confs
 confs=(
-    [%%vpnuser%%]=$vpnuser
-    [%%vpnuserpwd%%]=$vpnuserpwd
+    [%%wpacountry%%]=$wpacountry
+    [%%wpanetworkssid%%]=$wpanetworkssid
+    [%%wpanetworkencryptedpsk%%]=$wpanetworkencryptedpsk
 )
 strreplace
-cp -f $tempfile $pppoptfile
-chmod 600 $pppoptfile
+cp -f $tempfile $wpasupplicantconffile
 
-# PreSharedKey
-#ipsecsecretsfile="$TESTDIR/ipsec.secrets"
-cp -f $SCRIPTPATH/src/ipsec.secrets $tempfile
-declare -A confs
-confs=(
-    [%%vpnserverip%%]=$vpnserverip
-    [%%presharedkey%%]=$presharedkey
-)
-strreplace
-cp -f $tempfile $ipsecsecretsfile
-chmod 600 $ipsecsecretsfile
+# L2TP VPN settings
+if [ "${l2tpactive,,}" = "true" ]
+then
 
+	# Ipsec Configuration
+	#ipseccfgfile="$TESTDIR/ipsec.conf.inc"
+	cp -f $SCRIPTPATH/src/ipsec.conf.inc $tempfile
+	declare -A confs
+	confs=(
+	    [%%conname%%]=$conname
+	    [%%vpnserverip%%]=$vpnserverip
+	)
+	strreplace
+	cp -f $tempfile $ipseccfgfile
 
-# Vpn Start Script
-#vpnupfile="$TESTDIR/vpn-up.sh"
-cp -f $SCRIPTPATH/src/vpn-up.sh $tempfile
-declare -A confs
-confs=(
-    [%%conname%%]=$conname
-    [%%vpnsubnet%%]=$vpnsubnet
-    [%%vpnsubnetmask%%]=$vpnsubnetmask
-    [%%internalvpnip%%]=$internalvpnip
-)
-strreplace
-cp -f $tempfile $vpnupfile
-chmod 700 $vpnupfile
+	# L2tpd Client Options
+	#pppoptfile="$TESTDIR/options.l2tpd.client"
+	cp -f $SCRIPTPATH/src/options.l2tpd.client $tempfile
+	declare -A confs
+	confs=(
+	    [%%vpnuser%%]=$vpnuser
+	    [%%vpnuserpwd%%]=$vpnuserpwd
+	)
+	strreplace
+	cp -f $tempfile $pppoptfile
+	chmod 600 $pppoptfile
 
-# Xl2tpd Config
-#xl2tpcfgfile="$TESTDIR/xl2tpd.conf"
-cp -f $SCRIPTPATH/src/xl2tpd.conf $tempfile
-declare -A confs
-confs=(
-    [%%conname%%]=$conname
-    [%%vpnserverip%%]=$vpnserverip
-    [%%pppoptfile%%]=$pppoptfile
-)
-strreplace
-cp -f $tempfile $xl2tpcfgfile
+	# PreSharedKey
+	#ipsecsecretsfile="$TESTDIR/ipsec.secrets"
+	cp -f $SCRIPTPATH/src/ipsec.secrets $tempfile
+	declare -A confs
+	confs=(
+	    [%%vpnserverip%%]=$vpnserverip
+	    [%%presharedkey%%]=$presharedkey
+	)
+	strreplace
+	cp -f $tempfile $ipsecsecretsfile
+	chmod 600 $ipsecsecretsfile
+
+	# L2tp Start Script
+	cp -f $SCRIPTPATH/src/l2tp-up.sh $tempfile
+	declare -A confs
+	confs=(
+	    [%%conname%%]=$conname
+	    [%%vpnsubnet%%]=$vpnsubnet
+	    [%%vpnsubnetmask%%]=$vpnsubnetmask
+	    [%%internalvpnip%%]=$internalvpnip
+	)
+	strreplace
+	cp -f $tempfile $l2tpupfile
+	chmod 700 $l2tpupfile
+
+	# Xl2tpd Config
+	#xl2tpcfgfile="$TESTDIR/xl2tpd.conf"
+	cp -f $SCRIPTPATH/src/xl2tpd.conf $tempfile
+	declare -A confs
+	confs=(
+	    [%%conname%%]=$conname
+	    [%%vpnserverip%%]=$vpnserverip
+	    [%%pppoptfile%%]=$pppoptfile
+	)
+	strreplace
+	cp -f $tempfile $xl2tpcfgfile
+	
+	# L2tp Service
+	cp -f $SCRIPTPATH/src/l2tp.service $tempfile
+	declare -A confs
+	confs=(
+	    [%%l2tpstartupservicename%%]=$l2tpstartupservicename
+	    [%%l2tpupfile%%]=$l2tpupfile
+	)
+	strreplace
+	cp -f $tempfile $vpnservicefile
+	systemctl daemon-reload
+	if [ ${l2tpvpnbootstart,,} = "yes" ]
+	then
+		systemctl enable $l2tpstartupservicename
+	fi
+
+fi
 
 # Autofs Config
 cp -f $SCRIPTPATH/src/auto.master $tempfile
@@ -139,22 +186,6 @@ strreplace
 #autosshfsfile="$TESTDIR/auto.sshfs"
 cp -f $tempfile $autosshfsfile
 service autofs restart
-
-# Vpn Service
-#vpnservicefile="$TESTDIR/vpn.service"
-cp -f $SCRIPTPATH/src/vpn.service $tempfile
-declare -A confs
-confs=(
-    [%%vpnservicename%%]=$vpnservicename
-    [%%vpnupfile%%]=$vpnupfile
-)
-strreplace
-cp -f $tempfile $vpnservicefile
-systemctl daemon-reload
-if [ ${vpnbootstart,,} = "yes" ]
-then
-        systemctl enable $vpnservicename
-fi
 
 # Motion up Service
 #motionupservicefile="$TESTDIR/motionup.service"
@@ -256,7 +287,13 @@ cp -f $tempfile $kodiscriptfile
 chmod 700 $kodiscriptfile
 
 # Motion start script
-cp -f $SCRIPTPATH/src/motion-up.sh $motionupscriptfile
+cp -f $SCRIPTPATH/src/motion-up.sh $tempfile
+declare -A confs
+confs=(
+    [%%motionwaitforinterface%%]=$motionwaitforinterface
+)
+strreplace
+cp -f $tempfile $motionupscriptfile
 chmod 700 $motionupscriptfile
 
 # Domoticz user creation
@@ -316,30 +353,13 @@ strreplace
 cp -f $tempfile $domoticzservicefile
 systemctl daemon-reload
 
-# Gpio export (rc.local)
-search='"exit 0"'
-replace="exit with 0"
-sed -i "s^${search}^${replace}^g" /etc/rc.local
-search='exit 0'
-replace="/usr/bin/gpio export 17 out\n/usr/bin/gpio export 18 out\n/usr/bin/gpio export 27 out\n/usr/bin/gpio export 22 out\n/usr/bin/gpio export 23 out\n/usr/bin/gpio export 24 out\n/usr/bin/gpio export 25 out\n/usr/bin/gpio export 12 out\n\n/usr/sbin/service $domoticzservicename start\n\nexit 0"
-sed -i "s^${search}^${replace}^g" /etc/rc.local
+# Replace rc.local content
+cat $SCRIPTPATH/src/rc.local > $rclocalfile
 
 # Delete temp file
 rm -f $tempfile
 
 echo Configuration done.
-if [ ${vpnbootstart,,} = "yes" ]
-then
-        echo $vpnservicename service will start at boot time
-else
-	echo $vpnservicename service will NOT start at boot time
-fi
-if [ ${motionupbootstart,,} = "yes" ]
-then
-        echo $motionupservicename service will start at boot time
-else
-	echo $motionupservicename service will NOT start at boot time
-fi
 
 # Add server key to known hosts
 echo $sshserverkey >> /root/.ssh/known_hosts

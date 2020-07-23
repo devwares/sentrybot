@@ -1,9 +1,9 @@
 [Unit]
-Description=%%vpnservicename%% Service
+Description=%%l2tpstartupservicename%% Service
 After=xl2tpd.service ipsec.service
 
 [Service]
-ExecStart=%%vpnupfile%%
+ExecStart=%%l2tpupfile%%
 Restart=on-failure
 Type=simple
 
